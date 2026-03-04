@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "Bloomberg Terminal",
-  description: "Next.js Minimal Trader Terminal",
+  title: "OxyTerminal",
+  description: "Personal Trading Terminal Dashboard",
 };
 
 export default function RootLayout({
@@ -12,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className="dark">
+      <body className="font-mono">{children}</body>
     </html>
   );
 }
