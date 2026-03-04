@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { sectorData } from "@/lib/mock-data";
+import { useSectors } from "@/lib/hooks";
+import { sectorData as mockSectors } from "@/lib/mock-data";
 import type { SectorData } from "../types";
 
 function formatPerformance(val: number): string {
@@ -10,14 +11,46 @@ function formatPerformance(val: number): string {
 }
 
 export default function SectorLeaders() {
+  const { data: apiSectors, isLoading, isError } = useSectors();
+
+  const sectors: SectorData[] = useMemo(() => {
+    if (apiSectors && Array.isArray(apiSectors) && apiSectors.length > 0) {
+      return apiSectors.map((s: { sector: string; changesPercentage: string }) => ({
+        name: s.sector,
+        performance: parseFloat(s.changesPercentage),
+        leaders: [], // FMP sector endpoint doesn't include individual stock leaders
+      }));
+    }
+    return mockSectors;
+  }, [apiSectors]);
+
   const maxAbs = useMemo(
-    () => Math.max(...sectorData.map((s) => Math.abs(s.performance))),
-    []
+    () => Math.max(...sectors.map((s) => Math.abs(s.performance)), 0.01),
+    [sectors]
   );
+
+  if (isLoading && sectors.length === 0) {
+    return (
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: "#0a0e14", color: "#3a4553", fontSize: "11px" }}
+      >
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-auto" style={{ background: "#0a0e14" }}>
-      {sectorData.map((sector: SectorData, idx: number) => {
+      {isError && (
+        <div
+          className="px-3 py-1 text-center"
+          style={{ color: "#ff4757", fontSize: "10px", borderBottom: "1px solid #2a3545" }}
+        >
+          API error - showing cached data
+        </div>
+      )}
+      {sectors.map((sector: SectorData, idx: number) => {
         const isEven = idx % 2 === 0;
         const rowBg = isEven ? "#111820" : "#151d2a";
         const isPositive = sector.performance >= 0;
@@ -88,20 +121,22 @@ export default function SectorLeaders() {
               </div>
             </div>
 
-            {/* Leader pills */}
-            <div className="mt-0.5 flex gap-1">
-              {sector.leaders.map((leader) => (
-                <span
-                  key={leader.ticker}
-                  style={{
-                    fontSize: "10px",
-                    color: "#7a8a9e",
-                  }}
-                >
-                  {leader.ticker}
-                </span>
-              ))}
-            </div>
+            {/* Leader pills - only show if leaders exist */}
+            {sector.leaders.length > 0 && (
+              <div className="mt-0.5 flex gap-1">
+                {sector.leaders.map((leader) => (
+                  <span
+                    key={leader.ticker}
+                    style={{
+                      fontSize: "10px",
+                      color: "#7a8a9e",
+                    }}
+                  >
+                    {leader.ticker}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

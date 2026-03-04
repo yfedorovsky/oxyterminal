@@ -1,73 +1,123 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { activeTickerAtom } from "../atoms";
 
-const BAR_COUNT = 20;
+const WIDGET_SCRIPT_SRC =
+  "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
 
 export default function MainChart() {
   const activeTicker = useAtomValue(activeTickerAtom);
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
 
-  const bars = useMemo(() => {
-    // Deterministic pseudo-random bars based on ticker string
-    const seed = activeTicker
-      .split("")
-      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    return Array.from({ length: BAR_COUNT }, (_, i) => {
-      const hash = ((seed * (i + 1) * 7 + 13) % 100) / 100;
-      const height = 15 + hash * 85; // 15-100% height range
-      const isGreen = ((seed + i) % 3) !== 0;
-      return { height, isGreen };
+  useEffect(() => {
+    const wrapper = widgetRef.current;
+    if (!wrapper) return;
+
+    // Clear any previous widget content
+    wrapper.innerHTML = "";
+    setLoading(true);
+
+    // Build the TradingView widget container structure
+    const widgetContainer = document.createElement("div");
+    widgetContainer.className = "tradingview-widget-container";
+    widgetContainer.style.width = "100%";
+    widgetContainer.style.height = "100%";
+
+    const chartDiv = document.createElement("div");
+    chartDiv.id = "tradingview-chart";
+    chartDiv.style.width = "100%";
+    chartDiv.style.height = "100%";
+    widgetContainer.appendChild(chartDiv);
+
+    // Create the widget script with embedded JSON configuration
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = WIDGET_SCRIPT_SRC;
+    script.async = true;
+    script.textContent = JSON.stringify({
+      symbol: `NASDAQ:${activeTicker}`,
+      theme: "dark",
+      backgroundColor: "#0a0e14",
+      style: "1",
+      timezone: "America/New_York",
+      toolbar_bg: "#0a0e14",
+      hide_side_toolbar: false,
+      allow_symbol_change: false,
+      save_image: false,
+      studies: ["RSI@tv-basicstudies", "MASimple@tv-basicstudies"],
+      interval: "D",
+      width: "100%",
+      height: "100%",
+      container_id: "tradingview-chart",
     });
+
+    script.onload = () => {
+      setLoading(false);
+    };
+
+    // Fallback: hide loader after a few seconds in case onload does not fire
+    const fallbackTimer = setTimeout(() => {
+      setLoading(false);
+    }, 4000);
+
+    widgetContainer.appendChild(script);
+    wrapper.appendChild(widgetContainer);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      // Clean up: remove all widget DOM nodes
+      wrapper.innerHTML = "";
+    };
   }, [activeTicker]);
 
   return (
     <div
-      className="flex h-full flex-col items-center justify-center"
-      style={{ background: "#0d1117" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "relative",
+        background: "#0a0e14",
+      }}
     >
-      {/* Ticker label */}
-      <div
-        style={{
-          fontSize: "32px",
-          fontWeight: 600,
-          color: "#7a8a9e",
-          letterSpacing: "2px",
-          marginBottom: "4px",
-        }}
-      >
-        {activeTicker}
-      </div>
-      <div
-        style={{
-          fontSize: "10px",
-          color: "#7a8a9e",
-          marginBottom: "24px",
-        }}
-      >
-        TradingView chart loads in Phase 2
-      </div>
-
-      {/* Placeholder volume bars */}
-      <div
-        className="flex items-end gap-0.5"
-        style={{ height: "80px", width: "260px" }}
-      >
-        {bars.map((bar, i) => (
-          <div
-            key={i}
+      {/* Loading overlay */}
+      {loading && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+            background: "#0a0e14",
+            pointerEvents: "none",
+          }}
+        >
+          <span
             style={{
-              flex: 1,
-              height: `${bar.height}%`,
-              background: bar.isGreen
-                ? "rgba(0, 212, 170, 0.3)"
-                : "rgba(255, 71, 87, 0.3)",
-              minWidth: "4px",
+              fontSize: "14px",
+              color: "#3a4553",
+              fontFamily: "monospace",
+              letterSpacing: "1px",
             }}
-          />
-        ))}
-      </div>
+          >
+            Loading {activeTicker}...
+          </span>
+        </div>
+      )}
+
+      {/* Widget mount point -- managed imperatively via useEffect */}
+      <div
+        ref={widgetRef}
+        style={{
+          width: "100%",
+          height: "100%",
+        }}
+      />
     </div>
   );
 }

@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { financialsAAPL } from "@/lib/mock-data";
+import { useState, useMemo } from "react";
+import { useAtomValue } from "jotai";
+import { useFinancials } from "@/lib/hooks";
+import { financialsAAPL as mockFinancials } from "@/lib/mock-data";
+import { activeTickerAtom } from "../atoms";
+import type { FinancialsData } from "../types";
 
 type FinancialTab = "Income" | "Balance Sheet" | "Cash Flow";
 
@@ -11,7 +15,7 @@ function formatBillions(val: number): string {
 
 function formatPct(val: number): string {
   const prefix = val > 0 ? "+" : "";
-  return prefix + (val * 100).toFixed(1) + "%";
+  return prefix + val.toFixed(1) + "%";
 }
 
 interface RowDef {
@@ -34,7 +38,55 @@ const TABS: FinancialTab[] = ["Income", "Balance Sheet", "Cash Flow"];
 
 export default function Financials() {
   const [activeTab, setActiveTab] = useState<FinancialTab>("Income");
-  const data = financialsAAPL;
+  const activeTicker = useAtomValue(activeTickerAtom);
+
+  const { data: apiFinancials, isLoading, isError } = useFinancials(activeTicker);
+
+  // Map API data to our FinancialsData shape
+  // API returns array of { quarter, revenue, grossProfit, operatingIncome, netIncome, eps, revenueGrowth }
+  // where revenueGrowth is a percentage (e.g. 4.2 meaning 4.2%), but our mock uses decimal (0.042)
+  const data: FinancialsData = useMemo(() => {
+    if (apiFinancials && Array.isArray(apiFinancials) && apiFinancials.length > 0) {
+      return {
+        ticker: activeTicker,
+        quarters: apiFinancials.map((q: { quarter: string; revenue: number; grossProfit: number; operatingIncome: number; netIncome: number; eps: number; revenueGrowth: number }) => ({
+          quarter: q.quarter,
+          revenue: q.revenue,
+          grossProfit: q.grossProfit,
+          operatingIncome: q.operatingIncome,
+          netIncome: q.netIncome,
+          eps: q.eps,
+          revenueGrowth: q.revenueGrowth / 100, // Convert percentage to decimal for formatPct
+        })),
+      };
+    }
+    // Fallback to mock data, but show active ticker
+    return { ...mockFinancials, ticker: activeTicker };
+  }, [apiFinancials, activeTicker]);
+
+  if (isLoading && !apiFinancials) {
+    return (
+      <div className="flex h-full flex-col" style={{ background: "#0a0e14" }}>
+        <div
+          className="flex items-center gap-0 px-2 py-1 shrink-0"
+          style={{ borderBottom: "1px solid #2a3545", background: "#111820" }}
+        >
+          <span
+            className="mr-3"
+            style={{ color: "#ff8c00", fontWeight: 600, fontSize: "12px" }}
+          >
+            {activeTicker}
+          </span>
+        </div>
+        <div
+          className="flex flex-1 items-center justify-center"
+          style={{ color: "#3a4553", fontSize: "11px" }}
+        >
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col" style={{ background: "#0a0e14" }}>
@@ -66,6 +118,17 @@ export default function Financials() {
             {tab}
           </button>
         ))}
+        {isLoading && (
+          <span
+            className="ml-auto inline-block animate-pulse"
+            style={{
+              width: "5px",
+              height: "5px",
+              borderRadius: "50%",
+              background: "#ff8c00",
+            }}
+          />
+        )}
       </div>
 
       {/* Content */}
@@ -152,6 +215,17 @@ export default function Financials() {
                   </tr>
                 );
               })}
+              {isError && (
+                <tr>
+                  <td
+                    colSpan={data.quarters.length + 1}
+                    className="px-2 py-1 text-center"
+                    style={{ color: "#ff4757", fontSize: "10px" }}
+                  >
+                    API error - showing cached data
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         ) : (

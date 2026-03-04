@@ -1,13 +1,49 @@
 "use client";
 
-import { newsItems } from "@/lib/mock-data";
+import { useMemo } from "react";
+import { useMarketNews } from "@/lib/hooks";
+import { newsItems as mockNews } from "@/lib/mock-data";
 import type { NewsItem } from "../types";
 import { formatDistanceToNow } from "date-fns";
 
 export default function NewsFeed() {
+  const { data: apiNews, isLoading, isError } = useMarketNews();
+
+  const news: NewsItem[] = useMemo(() => {
+    if (apiNews && Array.isArray(apiNews) && apiNews.length > 0) {
+      return apiNews.map((item: { id: number; headline: string; source: string; datetime: number; url: string; summary: string; related: string; image: string }) => ({
+        headline: item.headline,
+        source: item.source,
+        timestamp: new Date(item.datetime * 1000).toISOString(),
+        relatedTickers: (item.related || "").split(",").filter(Boolean),
+        url: item.url,
+      }));
+    }
+    return mockNews;
+  }, [apiNews]);
+
+  if (isLoading && news.length === 0) {
+    return (
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: "#0a0e14", color: "#3a4553", fontSize: "11px" }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-auto" style={{ background: "#0a0e14" }}>
-      {newsItems.map((item: NewsItem, idx: number) => (
+      {isError && (
+        <div
+          className="px-3 py-1 text-center"
+          style={{ color: "#ff4757", fontSize: "10px", borderBottom: "1px dashed #2a3545" }}
+        >
+          API error - showing cached data
+        </div>
+      )}
+      {news.map((item: NewsItem, idx: number) => (
         <div
           key={idx}
           className="px-3 py-2"

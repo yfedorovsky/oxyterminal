@@ -1,6 +1,8 @@
 "use client";
 
-import { earningsCalendar } from "@/lib/mock-data";
+import { useMemo } from "react";
+import { useEarnings } from "@/lib/hooks";
+import { earningsCalendar as mockEarnings } from "@/lib/mock-data";
 import type { EarningsItem } from "../types";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -26,6 +28,35 @@ const COLUMNS: { label: string; align: "left" | "right" | "center" }[] = [
 ];
 
 export default function EarningsCalendar() {
+  const { data: apiEarnings, isLoading, isError } = useEarnings();
+
+  const earnings: EarningsItem[] = useMemo(() => {
+    if (apiEarnings && Array.isArray(apiEarnings) && apiEarnings.length > 0) {
+      return apiEarnings
+        .map((item: { date: string; symbol: string; epsEstimate: number | null; revenueEstimate: number | null; hour: string; quarter: number; year: number }) => ({
+          date: item.date,
+          ticker: item.symbol,
+          company: item.symbol, // Finnhub earnings endpoint doesn't provide company names
+          epsEstimate: item.epsEstimate ?? 0,
+          revenueEstimate: item.revenueEstimate ?? 0,
+          time: (item.hour === "bmo" ? "BMO" : "AMC") as "BMO" | "AMC",
+        }))
+        .sort((a: EarningsItem, b: EarningsItem) => a.date.localeCompare(b.date));
+    }
+    return mockEarnings;
+  }, [apiEarnings]);
+
+  if (isLoading && earnings.length === 0) {
+    return (
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: "#0a0e14", color: "#3a4553", fontSize: "11px" }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-auto" style={{ background: "#0a0e14" }}>
       <table
@@ -52,14 +83,14 @@ export default function EarningsCalendar() {
           </tr>
         </thead>
         <tbody>
-          {earningsCalendar.map((item: EarningsItem, idx: number) => {
+          {earnings.map((item: EarningsItem, idx: number) => {
             const isToday = item.date === TODAY;
             const isEven = idx % 2 === 0;
             const rowBg = isEven ? "#111820" : "#151d2a";
 
             return (
               <tr
-                key={`${item.ticker}-${item.date}`}
+                key={`${item.ticker}-${item.date}-${idx}`}
                 style={{ height: "26px", background: rowBg }}
               >
                 <td className="px-2 py-0.5" style={{ color: "#7a8a9e", textAlign: "left" }}>
@@ -111,6 +142,17 @@ export default function EarningsCalendar() {
               </tr>
             );
           })}
+          {isError && (
+            <tr>
+              <td
+                colSpan={6}
+                className="px-2 py-1 text-center"
+                style={{ color: "#ff4757", fontSize: "10px" }}
+              >
+                API error - showing cached data
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

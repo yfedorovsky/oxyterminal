@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { topGainers, topLosers } from "@/lib/mock-data";
+import { useState, useMemo } from "react";
+import { useMovers } from "@/lib/hooks";
+import { topGainers as mockGainers, topLosers as mockLosers } from "@/lib/mock-data";
 import type { MoverStock } from "../types";
 
 type Tab = "Gainers" | "Losers";
@@ -34,7 +35,27 @@ const COLUMNS: { label: string; align: "left" | "right" }[] = [
 export default function MostActive() {
   const [activeTab, setActiveTab] = useState<Tab>("Gainers");
   const isGainer = activeTab === "Gainers";
-  const data: MoverStock[] = isGainer ? topGainers : topLosers;
+
+  const { data: apiGainers, isLoading: loadingGainers, isError: errorGainers } = useMovers("gainers");
+  const { data: apiLosers, isLoading: loadingLosers, isError: errorLosers } = useMovers("losers");
+
+  const gainers: MoverStock[] = useMemo(() => {
+    if (apiGainers && Array.isArray(apiGainers) && apiGainers.length > 0) {
+      return apiGainers as MoverStock[];
+    }
+    return mockGainers;
+  }, [apiGainers]);
+
+  const losers: MoverStock[] = useMemo(() => {
+    if (apiLosers && Array.isArray(apiLosers) && apiLosers.length > 0) {
+      return apiLosers as MoverStock[];
+    }
+    return mockLosers;
+  }, [apiLosers]);
+
+  const data: MoverStock[] = isGainer ? gainers : losers;
+  const isLoading = isGainer ? loadingGainers : loadingLosers;
+  const isError = isGainer ? errorGainers : errorLosers;
   const changeColor = isGainer ? "#00d4aa" : "#ff4757";
 
   return (
@@ -64,63 +85,94 @@ export default function MostActive() {
             {tab}
           </button>
         ))}
+        {isLoading && (
+          <span
+            className="ml-auto inline-block animate-pulse"
+            style={{
+              width: "5px",
+              height: "5px",
+              borderRadius: "50%",
+              background: "#ff8c00",
+            }}
+          />
+        )}
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table
-          className="w-full border-collapse text-xs"
-          style={{ fontVariantNumeric: "tabular-nums" }}
-        >
-          <thead>
-            <tr>
-              {COLUMNS.map((col) => (
-                <th
-                  key={col.label}
-                  className="sticky top-0 z-10 px-2 py-1 font-normal uppercase tracking-wide"
-                  style={{
-                    fontSize: "10px",
-                    color: "#7a8a9e",
-                    background: "#111820",
-                    textAlign: col.align,
-                    borderBottom: "1px solid #2a3545",
-                  }}
-                >
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((stock: MoverStock, idx: number) => {
-              const isEven = idx % 2 === 0;
-              const rowBg = isEven ? "#111820" : "#151d2a";
-
-              return (
-                <tr key={stock.ticker} style={{ height: "24px", background: rowBg }}>
-                  <td
-                    className="px-2 py-0.5"
-                    style={{ color: "#e8edf3", fontWeight: 600, textAlign: "left" }}
+        {isLoading && data.length === 0 ? (
+          <div
+            className="flex h-full items-center justify-center"
+            style={{ color: "#3a4553", fontSize: "11px" }}
+          >
+            Loading...
+          </div>
+        ) : (
+          <table
+            className="w-full border-collapse text-xs"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            <thead>
+              <tr>
+                {COLUMNS.map((col) => (
+                  <th
+                    key={col.label}
+                    className="sticky top-0 z-10 px-2 py-1 font-normal uppercase tracking-wide"
+                    style={{
+                      fontSize: "10px",
+                      color: "#7a8a9e",
+                      background: "#111820",
+                      textAlign: col.align,
+                      borderBottom: "1px solid #2a3545",
+                    }}
                   >
-                    {stock.ticker}
-                  </td>
-                  <td className="px-2 py-0.5" style={{ color: "#e8edf3", textAlign: "right" }}>
-                    {stock.last.toFixed(2)}
-                  </td>
-                  <td className="px-2 py-0.5" style={{ color: changeColor, textAlign: "right" }}>
-                    {formatChange(stock.change, isGainer)}
-                  </td>
-                  <td className="px-2 py-0.5" style={{ color: changeColor, textAlign: "right" }}>
-                    {formatChangePct(stock.changePct, isGainer)}
-                  </td>
-                  <td className="px-2 py-0.5" style={{ color: "#7a8a9e", textAlign: "right" }}>
-                    {formatVolume(stock.volume)}
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((stock: MoverStock, idx: number) => {
+                const isEven = idx % 2 === 0;
+                const rowBg = isEven ? "#111820" : "#151d2a";
+
+                return (
+                  <tr key={stock.ticker} style={{ height: "24px", background: rowBg }}>
+                    <td
+                      className="px-2 py-0.5"
+                      style={{ color: "#e8edf3", fontWeight: 600, textAlign: "left" }}
+                    >
+                      {stock.ticker}
+                    </td>
+                    <td className="px-2 py-0.5" style={{ color: "#e8edf3", textAlign: "right" }}>
+                      {stock.last.toFixed(2)}
+                    </td>
+                    <td className="px-2 py-0.5" style={{ color: changeColor, textAlign: "right" }}>
+                      {formatChange(stock.change, isGainer)}
+                    </td>
+                    <td className="px-2 py-0.5" style={{ color: changeColor, textAlign: "right" }}>
+                      {formatChangePct(stock.changePct, isGainer)}
+                    </td>
+                    <td className="px-2 py-0.5" style={{ color: "#7a8a9e", textAlign: "right" }}>
+                      {formatVolume(stock.volume)}
+                    </td>
+                  </tr>
+                );
+              })}
+              {isError && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-2 py-1 text-center"
+                    style={{ color: "#ff4757", fontSize: "10px" }}
+                  >
+                    API error - showing cached data
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

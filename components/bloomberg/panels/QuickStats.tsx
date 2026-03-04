@@ -1,5 +1,6 @@
 "use client";
 
+import { useMarketStatus } from "@/lib/hooks";
 import { quickStats } from "@/lib/mock-data";
 import { sentimentData } from "@/lib/mock-data";
 import type { TreasuryYield } from "../types";
@@ -15,11 +16,46 @@ export default function QuickStats() {
   const vix = sentimentData.vix;
   const vixColor = getVixColor(vix);
 
+  const { data: marketStatus } = useMarketStatus();
+
   const adRatio = stats.advanceDeclineRatio;
   const adBarWidth = Math.min((adRatio / (adRatio + 1)) * 100, 100);
 
+  const isOpen = marketStatus?.isOpen ?? null;
+
   return (
     <div className="h-full overflow-auto p-3" style={{ background: "#0a0e14" }}>
+      {/* Market Status Badge */}
+      {isOpen !== null && (
+        <div className="mb-3 flex items-center gap-2">
+          <span
+            className="inline-block"
+            style={{
+              width: "6px",
+              height: "6px",
+              borderRadius: "50%",
+              background: isOpen ? "#00d4aa" : "#ff4757",
+              animation: isOpen ? "pulse 2s infinite" : "none",
+            }}
+          />
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              color: isOpen ? "#00d4aa" : "#ff4757",
+              letterSpacing: "0.05em",
+            }}
+          >
+            MARKET: {isOpen ? "OPEN" : "CLOSED"}
+          </span>
+          {marketStatus?.session && (
+            <span style={{ fontSize: "9px", color: "#7a8a9e" }}>
+              ({marketStatus.session})
+            </span>
+          )}
+        </div>
+      )}
+
       {/* VIX */}
       <div className="mb-3">
         <div
