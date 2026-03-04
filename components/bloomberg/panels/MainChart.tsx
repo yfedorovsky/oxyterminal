@@ -4,6 +4,24 @@ import { useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { activeTickerAtom } from "../atoms";
 
+// NYSE-listed tickers from the watchlist. TradingView needs the correct
+// exchange prefix — everything else defaults to NASDAQ.
+const NYSE_TICKERS = new Set([
+  "BAC", "BRK.B", "IBM", "JNJ", "JPM", "MA", "PFE",
+  "GS", "UNH", "JNJ", "XOM", "CVX", "MCD", "KO", "PG",
+  "WMT", "DIS", "V", "HD", "CAT", "HON", "GE", "MMM",
+  "CRM", // NYSE since Dec 2020
+]);
+
+// ETFs use AMEX
+const AMEX_TICKERS = new Set(["SPY", "QQQ", "DIA", "IWM", "TLT", "XLE", "KRE", "GLD", "SLV"]);
+
+function getTradingViewSymbol(ticker: string): string {
+  if (AMEX_TICKERS.has(ticker)) return `AMEX:${ticker}`;
+  if (NYSE_TICKERS.has(ticker)) return `NYSE:${ticker}`;
+  return `NASDAQ:${ticker}`;
+}
+
 export default function MainChart() {
   const activeTicker = useAtomValue(activeTickerAtom);
 
@@ -12,7 +30,7 @@ export default function MainChart() {
   // under the hood, but done directly to avoid cross-origin script issues.
   const iframeSrc = useMemo(() => {
     const config = {
-      symbol: `NASDAQ:${activeTicker}`,
+      symbol: getTradingViewSymbol(activeTicker),
       theme: "dark",
       backgroundColor: "rgba(10, 14, 20, 1)",
       style: "1",
