@@ -113,6 +113,26 @@ export function useCompanyDescription(symbol: string) {
   });
 }
 
+// ─── AI Research Hooks ──────────────────────────────────────────────────
+
+import type { AIResearchBrief } from "@/components/bloomberg/types";
+
+export function useAIResearch(symbol: string) {
+  return useQuery({
+    queryKey: ["ai-research", symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/research/brief?symbol=${symbol}`);
+      if (!res.ok) throw new Error("Failed to generate research brief");
+      return res.json() as Promise<AIResearchBrief>;
+    },
+    staleTime: 900_000, // 15min — research doesn't go stale instantly
+    gcTime: 3600_000, // Keep in cache for 1hr
+    enabled: !!symbol,
+    retry: 1,
+    refetchOnWindowFocus: false, // Don't auto-refetch, user triggers via Regenerate
+  });
+}
+
 // ─── FMP Hooks ──────────────────────────────────────────────────────────
 
 export function useSectors() {
@@ -182,6 +202,82 @@ export function useCashFlow(symbol: string) {
     staleTime: 3600_000,
     enabled: !!symbol,
     retry: 1,
+  });
+}
+
+// ─── Tradier Hooks ──────────────────────────────────────────────────────
+
+export function useOptionsExpirations(symbol: string) {
+  return useQuery({
+    queryKey: ["options-expirations", symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/tradier/options/expirations?symbol=${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch expirations");
+      const data = await res.json();
+      return data.expirations as string[];
+    },
+    staleTime: 3600_000, // 1hr – expirations don't change often
+    enabled: !!symbol,
+    retry: 1,
+  });
+}
+
+export function useOptionsChain(symbol: string, expiration: string) {
+  return useQuery({
+    queryKey: ["options-chain", symbol, expiration],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/tradier/options/chain?symbol=${symbol}&expiration=${expiration}`
+      );
+      if (!res.ok) throw new Error("Failed to fetch options chain");
+      const data = await res.json();
+      return data.options as Array<{
+        symbol: string;
+        option_type: string;
+        strike: number;
+        last: number | null;
+        bid: number;
+        ask: number;
+        volume: number;
+        open_interest: number;
+        greeks?: {
+          delta: number;
+          gamma: number;
+          theta: number;
+          vega: number;
+          rho: number;
+          mid_iv: number;
+          smv_vol: number;
+        };
+      }>;
+    },
+    refetchInterval: 30_000, // 30s during market hours
+    staleTime: 15_000,
+    enabled: !!symbol && !!expiration,
+    retry: 1,
+  });
+}
+
+export function useTradierQuote(symbol: string) {
+  return useQuery({
+    queryKey: ["tradier-quote", symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/tradier/quote?symbol=${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch Tradier quote");
+      return res.json() as Promise<{
+        symbol: string;
+        last: number;
+        bid: number;
+        ask: number;
+        change: number;
+        change_percentage: number;
+        volume: number;
+        prevclose: number;
+      }>;
+    },
+    refetchInterval: 15_000,
+    staleTime: 10_000,
+    enabled: !!symbol,
   });
 }
 
