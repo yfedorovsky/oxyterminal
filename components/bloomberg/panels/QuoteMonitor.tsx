@@ -125,83 +125,74 @@ export default function QuoteMonitor() {
     [sortKey],
   );
 
-  const tickerSet = useMemo(() => {
-    return new Set(tickers);
-  }, [tickers]);
-
   // Map API data to WatchlistQuote shape, falling back to mock for missing fields
   const quotes: WatchlistQuote[] = useMemo(() => {
-    // If API data is available, map it
-    if (apiQuotes && Array.isArray(apiQuotes) && apiQuotes.length > 0) {
-      return apiQuotes
-        .filter((q: { symbol: string }) => tickerSet.has(q.symbol))
-        .map(
-          (q: {
-            symbol: string;
-            price: number;
-            change: number;
-            changePercent: number;
-            high: number;
-            low: number;
-            open: number;
-            prevClose: number;
-          }) => {
-            const mock = mockLookup.get(q.symbol);
-
-            // If WebSocket has a more recent price for this symbol, use it
-            const wsTrade = trades.get(q.symbol);
-            const last = wsTrade ? wsTrade.price : q.price;
-            const change = wsTrade ? last - q.prevClose : q.change;
-            const changePct =
-              wsTrade && q.prevClose !== 0
-                ? (change / q.prevClose) * 100
-                : q.changePercent;
-
-            return {
-              ticker: q.symbol,
-              name: mock?.name ?? q.symbol,
-              last,
-              prevClose: q.prevClose,
-              bid: last - 0.02,
-              ask: last + 0.02,
-              change,
-              changePct,
-              volume: mock?.volume ?? 0,
-              high: q.high,
-              low: q.low,
-              open: q.open,
-              high52w: mock?.high52w ?? 0,
-              low52w: mock?.low52w ?? 0,
-              marketCap: mock?.marketCap ?? 0,
-              pe: mock?.pe ?? 0,
-              sector: mock?.sector ?? "",
-            };
-          },
-        );
+    // Build a lookup of API quotes by symbol
+    const apiMap = new Map<string, {
+      symbol: string; price: number; change: number; changePercent: number;
+      high: number; low: number; open: number; prevClose: number;
+    }>();
+    if (apiQuotes && Array.isArray(apiQuotes)) {
+      for (const q of apiQuotes) {
+        apiMap.set(q.symbol, q);
+      }
     }
 
-    // Fallback to mock data (also merge WS prices if available)
-    return mockQuotes
-      .filter((q) => tickerSet.has(q.ticker))
-      .map((q) => {
-        const wsTrade = trades.get(q.ticker);
-        if (!wsTrade) return q;
+    // Always start from the current watchlist's tickers so we never blank out
+    return tickers.map((ticker) => {
+      const q = apiMap.get(ticker);
+      const mock = mockLookup.get(ticker);
+      const wsTrade = trades.get(ticker);
 
-        const last = wsTrade.price;
-        const change = last - q.prevClose;
+      if (q) {
+        // Real API data available
+        const last = wsTrade ? wsTrade.price : q.price;
+        const change = wsTrade ? last - q.prevClose : q.change;
         const changePct =
-          q.prevClose !== 0 ? (change / q.prevClose) * 100 : q.changePct;
+          wsTrade && q.prevClose !== 0
+            ? (change / q.prevClose) * 100
+            : q.changePercent;
 
         return {
-          ...q,
+          ticker: q.symbol,
+          name: mock?.name ?? q.symbol,
           last,
-          change,
-          changePct,
+          prevClose: q.prevClose,
           bid: last - 0.02,
           ask: last + 0.02,
+          change,
+          changePct,
+          volume: mock?.volume ?? 0,
+          high: q.high,
+          low: q.low,
+          open: q.open,
+          high52w: mock?.high52w ?? 0,
+          low52w: mock?.low52w ?? 0,
+          marketCap: mock?.marketCap ?? 0,
+          pe: mock?.pe ?? 0,
+          sector: mock?.sector ?? "",
         };
-      });
-  }, [apiQuotes, tickerSet, trades]);
+      }
+
+      // No API data yet — show ticker with zeroes (loading state)
+      const fallback = mock ?? {
+        ticker, name: ticker, last: 0, prevClose: 0,
+        bid: 0, ask: 0, change: 0, changePct: 0, volume: 0,
+        high: 0, low: 0, open: 0, high52w: 0, low52w: 0,
+        marketCap: 0, pe: 0, sector: "",
+      };
+
+      if (wsTrade) {
+        const last = wsTrade.price;
+        const change = last - fallback.prevClose;
+        const changePct =
+          fallback.prevClose !== 0 ? (change / fallback.prevClose) * 100 : 0;
+        return { ...fallback, last, change, changePct, bid: last - 0.02, ask: last + 0.02 };
+      }
+
+      return fallback;
+    });
+  }, [apiQuotes, tickers, trades]);
 
   const sortedQuotes = useMemo(() => {
     return [...quotes].sort((a, b) => {
@@ -221,16 +212,8 @@ export default function QuoteMonitor() {
   const watchlistNames = useMemo(() => Object.keys(watchlists), [watchlists]);
   const hasMultipleWatchlists = watchlistNames.length > 1;
 
-  if (isLoading && quotes.length === 0) {
-    return (
-      <div
-        className="flex h-full items-center justify-center"
-        style={{ background: "#0a0e14", color: "#3a4553", fontSize: "11px" }}
-      >
-        Loading...
-      </div>
-    );
-  }
+  // No early-return for loading — tickers render immediately with zero values,
+  // then populate as API data arrives. The orange pulse in the header shows loading.
 
   return (
     <div className="h-full flex flex-col" style={{ background: "#0a0e14" }}>
