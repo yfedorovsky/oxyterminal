@@ -137,6 +137,11 @@ export class FinnhubService {
   private apiKey: string;
   private baseUrl = "https://finnhub.io/api/v1";
 
+  // In-memory quote cache: symbol → { data, timestamp }
+  // Prevents duplicate API calls when QuoteMonitor + Heatmap request overlapping tickers
+  private quoteCache = new Map<string, { data: FinnhubQuote; ts: number }>();
+  private readonly CACHE_TTL = 12_000; // 12 seconds (just under the 15s refetch)
+
   constructor(apiKey: string) {
     this.apiKey = apiKey;
   }
@@ -177,19 +182,43 @@ export class FinnhubService {
   }
 
   async getQuotes(symbols: string[]): Promise<(FinnhubQuote & { symbol: string })[]> {
-    const results = await Promise.allSettled(
-      symbols.map(async (symbol) => {
-        const quote = await this.getQuote(symbol);
-        return { ...quote, symbol };
-      }),
-    );
+    const now = Date.now();
+    const cached: (FinnhubQuote & { symbol: string })[] = [];
+    const toFetch: string[] = [];
 
-    return results
-      .filter(
-        (r): r is PromiseFulfilledResult<FinnhubQuote & { symbol: string }> =>
-          r.status === "fulfilled",
-      )
-      .map((r) => r.value);
+    // Split into cached vs. needs-fetch
+    for (const symbol of symbols) {
+      const entry = this.quoteCache.get(symbol);
+      if (entry && now - entry.ts < this.CACHE_TTL) {
+        cached.push({ ...entry.data, symbol });
+      } else {
+        toFetch.push(symbol);
+      }
+    }
+
+    // Fetch uncached symbols in parallel batches
+    if (toFetch.length > 0) {
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
+        const batch = toFetch.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (symbol) => {
+            const quote = await this.getQuote(symbol);
+            // Cache the result
+            this.quoteCache.set(symbol, { data: quote, ts: Date.now() });
+            return { ...quote, symbol };
+          }),
+        );
+
+        for (const r of results) {
+          if (r.status === "fulfilled") {
+            cached.push(r.value);
+          }
+        }
+      }
+    }
+
+    return cached;
   }
 
   // ── Company ────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { useSetAtom } from "jotai";
 import { useQuery } from "@tanstack/react-query";
 import { watchlistsAtom, activeWatchlistAtom } from "@/components/bloomberg/atoms";
 
-// ─── Finnhub Hooks ──────────────────────────────────────────────────────
+// ─── Quote Hooks ────────────────────────────────────────────────────────
 
 export function useQuotes(symbols: string[]) {
   return useQuery({
