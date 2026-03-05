@@ -1,7 +1,7 @@
 "use client";
 
-import { useAtom } from "jotai";
-import { panelsAtom, maximizedPanelAtom } from "../atoms";
+import { useAtom, useAtomValue } from "jotai";
+import { panelsAtom, maximizedPanelAtom, flexPanelAtom } from "../atoms";
 import type { PanelConfig, PanelType } from "../types";
 import PanelCard from "./PanelCard";
 
@@ -20,6 +20,9 @@ import OptionsChain from "../panels/OptionsChain";
 import EarningsCalendar from "../panels/EarningsCalendar";
 import QuickStats from "../panels/QuickStats";
 import Portfolio from "../panels/Portfolio";
+import Description from "../panels/Description";
+import Financials from "../panels/Financials";
+import MostActive from "../panels/MostActive";
 
 const PANEL_COMPONENTS: Partial<Record<PanelType, React.ComponentType>> = {
   "quote-monitor": QuoteMonitor,
@@ -32,6 +35,9 @@ const PANEL_COMPONENTS: Partial<Record<PanelType, React.ComponentType>> = {
   "earnings-calendar": EarningsCalendar,
   "quick-stats": QuickStats,
   "portfolio": Portfolio,
+  "description": Description,
+  "financials": Financials,
+  "most-active": MostActive,
 };
 
 function PanelContent({ type }: { type: PanelType }) {
@@ -72,9 +78,18 @@ const GRID_SLOTS: GridSlot[] = [
   { type: "portfolio", gridArea: "pf" },
 ];
 
+// Map from flexPanelAtom value to panel title for display
+const FLEX_PANEL_TITLES: Record<string, string> = {
+  "options-chain": "Options",
+  "description": "Description",
+  "financials": "Financials",
+  "most-active": "Most Active",
+};
+
 export default function PanelWorkspace() {
   const [panels, setPanels] = useAtom(panelsAtom);
   const [maximizedPanel, setMaximizedPanel] = useAtom(maximizedPanelAtom);
+  const flexPanel = useAtomValue(flexPanelAtom);
 
   const handleMaximize = (panel: PanelConfig) => {
     if (maximizedPanel === panel.id) {
@@ -115,6 +130,11 @@ export default function PanelWorkspace() {
     }
   }
 
+  // Compute effective grid slots: replace the "oc" slot type with the current flex panel
+  const effectiveSlots: GridSlot[] = GRID_SLOTS.map((slot) =>
+    slot.gridArea === "oc" ? { ...slot, type: flexPanel } : slot
+  );
+
   // Build a map of type -> PanelConfig for quick lookup
   const panelsByType = new Map<PanelType, PanelConfig>();
   for (const p of panels) {
@@ -145,13 +165,23 @@ export default function PanelWorkspace() {
         gap: 2,
       }}
     >
-      {GRID_SLOTS.map((slot) => {
-        const panel = panelsByType.get(slot.type);
+      {effectiveSlots.map((slot) => {
+        // For the flex slot, synthesize a PanelConfig if none exists in the panels array
+        let panel = panelsByType.get(slot.type);
+        if (!panel && slot.gridArea === "oc") {
+          panel = {
+            id: `panel-${slot.type}`,
+            type: slot.type,
+            title: FLEX_PANEL_TITLES[slot.type] ?? slot.type.toUpperCase().replace(/-/g, " "),
+            linkColor: null,
+            isMaximized: false,
+          };
+        }
         if (!panel) return null;
 
         return (
           <div
-            key={panel.id}
+            key={`${slot.gridArea}-${slot.type}`}
             style={{
               gridArea: slot.gridArea,
               minWidth: 0,

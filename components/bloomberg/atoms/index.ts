@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import type { LinkColor, PanelConfig } from "../types";
+import type { LinkColor, PanelConfig, PanelType } from "../types";
 
 const DEFAULT_PANELS: PanelConfig[] = [
   { id: "panel-quote-monitor", type: "quote-monitor", title: "Quote Monitor", linkColor: null, isMaximized: false },
@@ -31,3 +31,7 @@ export const watchlistsAtom = atom<Record<string, string[]>>({
   ],
 });
 export const showHelpAtom = atom<boolean>(false);
+
+// Tracks which panel to show in the "flexible" bottom-left slot (grid area "oc").
+// Default is "options-chain", but commands like DES, FA, MOST swap it.
+export const flexPanelAtom = atom<PanelType>("options-chain");

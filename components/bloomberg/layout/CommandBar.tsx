@@ -8,6 +8,7 @@ import {
   commandHistoryAtom,
   activeCommandAtom,
   showHelpAtom,
+  flexPanelAtom,
 } from "../atoms";
 import { parseCommand, getCommandSuggestions } from "@/lib/commands";
 
@@ -31,6 +32,7 @@ export default function CommandBar() {
   const [commandHistory, setCommandHistory] = useAtom(commandHistoryAtom);
   const setActiveTicker = useSetAtom(activeTickerAtom);
   const setShowHelp = useSetAtom(showHelpAtom);
+  const setFlexPanel = useSetAtom(flexPanelAtom);
 
   const [inputValue, setInputValue] = useState("");
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -173,13 +175,29 @@ export default function CommandBar() {
         setShowHelp(true);
       }
 
+      // Swap the flexible bottom-left panel based on command type
+      switch (command.type) {
+        case "description":
+          setFlexPanel("description");
+          break;
+        case "financials":
+          setFlexPanel("financials");
+          break;
+        case "movers":
+          setFlexPanel("most-active");
+          break;
+        case "options":
+          setFlexPanel("options-chain");
+          break;
+      }
+
       // Clear input
       setInputValue("");
       setHistoryIndex(-1);
       setShowDropdown(false);
       setTickerResults([]);
     },
-    [setCommandHistory, setActiveCommand, setActiveTicker, setShowHelp]
+    [setCommandHistory, setActiveCommand, setActiveTicker, setShowHelp, setFlexPanel]
   );
 
   // Select a ticker from search results: set it as active ticker

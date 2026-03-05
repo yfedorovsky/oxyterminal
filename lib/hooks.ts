@@ -98,6 +98,21 @@ export function useCompanyProfile(symbol: string) {
   });
 }
 
+export function useCompanyDescription(symbol: string) {
+  return useQuery({
+    queryKey: ["company-description", symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/fmp/profile?symbol=${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch company description");
+      const data = await res.json();
+      return (data.description || "") as string;
+    },
+    staleTime: 86400_000, // 24hr
+    enabled: !!symbol,
+    retry: 1,
+  });
+}
+
 // ─── FMP Hooks ──────────────────────────────────────────────────────────
 
 export function useSectors() {
