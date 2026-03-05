@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import {
   useETradeAccounts,
@@ -287,17 +287,18 @@ function ConnectedView() {
   const [, setActiveTicker] = useAtom(activeTickerAtom);
   const [sortKey, setSortKey] = useState<SortKey>("totalGainPct");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [selectedIdx, setSelectedIdx] = useState<number>(-1);
 
   const { data: accounts } = useETradeAccounts();
 
-  // Use first account by default
-  const activeAccount: Account | null = useMemo(() => {
-    if (Array.isArray(accounts) && accounts.length > 0) {
-      return accounts[0] as Account;
-    }
-    return null;
+  const typedAccounts = useMemo(() => {
+    if (!Array.isArray(accounts)) return [] as Account[];
+    return accounts as Account[];
   }, [accounts]);
 
+  // Auto-select: use last account (usually the funded one), unless user picked one
+  const activeIdx = selectedIdx >= 0 ? selectedIdx : Math.max(0, typedAccounts.length - 1);
+  const activeAccount = typedAccounts[activeIdx] || null;
   const accountIdKey = activeAccount?.accountIdKey || "";
 
   const { data: positions, isLoading: posLoading } = useETradePositions(accountIdKey);
@@ -342,6 +343,45 @@ function ConnectedView() {
 
   return (
     <div className="flex h-full flex-col" style={{ background: "#0a0e14" }}>
+      {/* Account tabs (only show if multiple accounts) */}
+      {typedAccounts.length > 1 && (
+        <div
+          style={{
+            display: "flex",
+            gap: "0px",
+            borderBottom: "1px solid #2a3545",
+            background: "#111820",
+          }}
+        >
+          {typedAccounts.map((acct, idx) => {
+            const isActive = idx === activeIdx;
+            return (
+              <button
+                key={acct.accountIdKey}
+                onClick={() => setSelectedIdx(idx)}
+                style={{
+                  background: isActive ? "#1a2130" : "transparent",
+                  border: "none",
+                  borderBottom: isActive ? "2px solid #4fc3f7" : "2px solid transparent",
+                  color: isActive ? "#e8edf3" : "#4a5568",
+                  fontSize: "9px",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  padding: "5px 10px",
+                  cursor: "pointer",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {acct.accountDesc || acct.accountType}
+                <span style={{ color: "#3a4553", marginLeft: "4px", fontSize: "8px" }}>
+                  ···{acct.accountId.slice(-4)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Portfolio summary banner */}
       <div
         style={{
@@ -543,6 +583,27 @@ export default function Portfolio() {
   const [requestToken, setRequestToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  // On mount, check if we already have valid tokens (from mirbot cache or disk)
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/etrade/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setAuthStep("connected");
+          }
+        }
+      } catch {
+        // ignore — just stay disconnected
+      } finally {
+        setChecking(false);
+      }
+    }
+    checkAuth();
+  }, []);
 
   const handleConnect = useCallback(async () => {
     setIsLoading(true);
@@ -594,6 +655,18 @@ export default function Portfolio() {
     setRequestToken("");
     setError(null);
   }, []);
+
+  // Show brief loading while checking auth status
+  if (checking) {
+    return (
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: "#0a0e14", color: "#3a4553", fontSize: "11px" }}
+      >
+        Checking E*TRADE connection...
+      </div>
+    );
+  }
 
   switch (authStep) {
     case "disconnected":
