@@ -11,6 +11,7 @@ const DEFAULT_PANELS: PanelConfig[] = [
   { id: "panel-options-chain", type: "options-chain", title: "Options", linkColor: null, isMaximized: false },
   { id: "panel-earnings-calendar", type: "earnings-calendar", title: "Earnings", linkColor: null, isMaximized: false },
   { id: "panel-quick-stats", type: "quick-stats", title: "Quick Stats", linkColor: null, isMaximized: false },
+  { id: "panel-portfolio", type: "portfolio", title: "Portfolio", linkColor: null, isMaximized: false },
 ];
 
 export const activeTickerAtom = atom<string>("NVDA");

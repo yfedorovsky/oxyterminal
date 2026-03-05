@@ -10,7 +10,8 @@ export type PanelType =
   | "sector-leaders"
   | "quick-stats"
   | "most-active"
-  | "description";
+  | "description"
+  | "portfolio";
 
 export type LinkColor = "green" | "blue" | "yellow" | "red" | null;
 
@@ -44,6 +45,7 @@ export type CommandType =
   | "description"
   | "watchlist"
   | "alert"
+  | "portfolio"
   | "unknown";
 
 export interface Command {

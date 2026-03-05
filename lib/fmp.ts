@@ -124,6 +124,106 @@ export interface FMPIncomeStatement {
   finalLink: string;
 }
 
+export interface FMPBalanceSheet {
+  date: string;
+  symbol: string;
+  reportedCurrency: string;
+  calendarYear?: string;
+  fiscalYear?: string;
+  period: string;
+  cashAndCashEquivalents: number;
+  shortTermInvestments: number;
+  cashAndShortTermInvestments: number;
+  netReceivables: number;
+  inventory: number;
+  otherCurrentAssets: number;
+  totalCurrentAssets: number;
+  propertyPlantEquipmentNet: number;
+  goodwill: number;
+  intangibleAssets: number;
+  goodwillAndIntangibleAssets: number;
+  longTermInvestments: number;
+  taxAssets: number;
+  otherNonCurrentAssets: number;
+  totalNonCurrentAssets: number;
+  otherAssets: number;
+  totalAssets: number;
+  accountPayables: number;
+  shortTermDebt: number;
+  taxPayables: number;
+  deferredRevenue: number;
+  otherCurrentLiabilities: number;
+  totalCurrentLiabilities: number;
+  longTermDebt: number;
+  deferredRevenueNonCurrent: number;
+  deferredTaxLiabilitiesNonCurrent: number;
+  otherNonCurrentLiabilities: number;
+  totalNonCurrentLiabilities: number;
+  otherLiabilities: number;
+  capitalLeaseObligations: number;
+  totalLiabilities: number;
+  preferredStock: number;
+  commonStock: number;
+  retainedEarnings: number;
+  accumulatedOtherComprehensiveIncomeLoss: number;
+  othertotalStockholdersEquity: number;
+  totalStockholdersEquity: number;
+  totalEquity: number;
+  totalLiabilitiesAndStockholdersEquity: number;
+  minorityInterest: number;
+  totalLiabilitiesAndTotalEquity: number;
+  totalInvestments: number;
+  totalDebt: number;
+  netDebt: number;
+}
+
+export interface FMPCashFlowStatement {
+  date: string;
+  symbol: string;
+  reportedCurrency: string;
+  calendarYear?: string;
+  fiscalYear?: string;
+  period: string;
+  netIncome: number;
+  depreciationAndAmortization: number;
+  deferredIncomeTax: number;
+  stockBasedCompensation: number;
+  changeInWorkingCapital: number;
+  accountsReceivables: number;
+  inventory: number;
+  accountsPayables: number;
+  otherWorkingCapital: number;
+  otherNonCashItems: number;
+  netCashProvidedByOperatingActivities: number;
+  investmentsInPropertyPlantAndEquipment: number;
+  acquisitionsNet: number;
+  purchasesOfInvestments: number;
+  salesMaturitiesOfInvestments: number;
+  otherInvestingActivites: number;
+  netCashUsedForInvestingActivites: number;
+  debtRepayment: number;
+  commonStockIssued: number;
+  commonStockRepurchased: number;
+  dividendsPaid: number;
+  otherFinancingActivites: number;
+  netCashUsedProvidedByFinancingActivities: number;
+  effectOfForexChangesOnCash: number;
+  netChangeInCash: number;
+  cashAtEndOfPeriod: number;
+  cashAtBeginningOfPeriod: number;
+  operatingCashFlow: number;
+  capitalExpenditure: number;
+  freeCashFlow: number;
+}
+
+export interface FMPSearchResult {
+  symbol: string;
+  name: string;
+  currency: string;
+  stockExchange: string;
+  exchangeShortName: string;
+}
+
 // ─── Service Class ───────────────────────────────────────────────────────────
 
 export class FMPService {
@@ -216,6 +316,40 @@ export class FMPService {
       period,
       limit: String(limit),
     });
+  }
+
+  async getBalanceSheet(
+    symbol: string,
+    period: string = "quarter",
+    limit: number = 5,
+  ): Promise<FMPBalanceSheet[]> {
+    return this.fetch<FMPBalanceSheet[]>("/balance-sheet-statement", {
+      symbol,
+      period,
+      limit: String(limit),
+    });
+  }
+
+  async getCashFlowStatement(
+    symbol: string,
+    period: string = "quarter",
+    limit: number = 5,
+  ): Promise<FMPCashFlowStatement[]> {
+    return this.fetch<FMPCashFlowStatement[]>("/cash-flow-statement", {
+      symbol,
+      period,
+      limit: String(limit),
+    });
+  }
+
+  // ── Ticker Search ─────────────────────────────────────────────────────
+
+  async searchTicker(query: string, limit: number = 10): Promise<FMPSearchResult[]> {
+    try {
+      return await this.fetch<FMPSearchResult[]>("/search", { query, limit: String(limit) });
+    } catch {
+      return [];
+    }
   }
 }
 

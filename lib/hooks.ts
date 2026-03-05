@@ -141,3 +141,76 @@ export function useFinancials(symbol: string) {
     retry: 1, // FMP free tier has limit restrictions
   });
 }
+
+export function useBalanceSheet(symbol: string) {
+  return useQuery({
+    queryKey: ["balance-sheet", symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/fmp/balance-sheet?symbol=${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch balance sheet");
+      return res.json();
+    },
+    staleTime: 3600_000,
+    enabled: !!symbol,
+    retry: 1,
+  });
+}
+
+export function useCashFlow(symbol: string) {
+  return useQuery({
+    queryKey: ["cash-flow", symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/fmp/cash-flow?symbol=${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch cash flow");
+      return res.json();
+    },
+    staleTime: 3600_000,
+    enabled: !!symbol,
+    retry: 1,
+  });
+}
+
+// ─── E*TRADE Hooks ──────────────────────────────────────────────────────
+
+export function useETradeAccounts() {
+  return useQuery({
+    queryKey: ["etrade-accounts"],
+    queryFn: async () => {
+      const res = await fetch("/api/etrade/accounts");
+      if (!res.ok) throw new Error("Failed to fetch E*TRADE accounts");
+      return res.json();
+    },
+    staleTime: 300_000, // 5min
+    retry: false,
+  });
+}
+
+export function useETradePositions(accountId: string) {
+  return useQuery({
+    queryKey: ["etrade-positions", accountId],
+    queryFn: async () => {
+      const res = await fetch(`/api/etrade/positions?accountId=${accountId}`);
+      if (!res.ok) throw new Error("Failed to fetch positions");
+      return res.json();
+    },
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+    enabled: !!accountId,
+    retry: false,
+  });
+}
+
+export function useETradeBalance(accountId: string) {
+  return useQuery({
+    queryKey: ["etrade-balance", accountId],
+    queryFn: async () => {
+      const res = await fetch(`/api/etrade/balance?accountId=${accountId}`);
+      if (!res.ok) throw new Error("Failed to fetch balance");
+      return res.json();
+    },
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+    enabled: !!accountId,
+    retry: false,
+  });
+}

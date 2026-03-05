@@ -19,6 +19,7 @@ import AIResearch from "../panels/AIResearch";
 import OptionsChain from "../panels/OptionsChain";
 import EarningsCalendar from "../panels/EarningsCalendar";
 import QuickStats from "../panels/QuickStats";
+import Portfolio from "../panels/Portfolio";
 
 const PANEL_COMPONENTS: Partial<Record<PanelType, React.ComponentType>> = {
   "quote-monitor": QuoteMonitor,
@@ -30,6 +31,7 @@ const PANEL_COMPONENTS: Partial<Record<PanelType, React.ComponentType>> = {
   "options-chain": OptionsChain,
   "earnings-calendar": EarningsCalendar,
   "quick-stats": QuickStats,
+  "portfolio": Portfolio,
 };
 
 function PanelContent({ type }: { type: PanelType }) {
@@ -67,6 +69,7 @@ const GRID_SLOTS: GridSlot[] = [
   { type: "options-chain", gridArea: "oc" },
   { type: "earnings-calendar", gridArea: "ec" },
   { type: "quick-stats", gridArea: "qs" },
+  { type: "portfolio", gridArea: "pf" },
 ];
 
 export default function PanelWorkspace() {
@@ -126,19 +129,19 @@ export default function PanelWorkspace() {
         backgroundColor: "var(--terminal-bg)",
         display: "grid",
         gridTemplateAreas: `
-          "qm mc mc nf"
-          "qm mc mc nf"
-          "qm mc mc nf"
-          "sg sl ar oc"
-          "sg sl ec qs"
+          "qm mc mc nf pf"
+          "qm mc mc nf pf"
+          "qm mc mc nf pf"
+          "sg sl ar oc pf"
+          "sg sl ec qs pf"
         `,
         /*
          * Top row ~ 60%: 3 conceptual rows (qm/mc/nf)
          * Bottom row ~ 40%: 2 conceptual rows (sg/sl/ar/oc and sg/sl/ec/qs)
-         * Using fr: 3fr for top (60%) and 2fr for bottom (40%) = 5 rows total
+         * Portfolio panel spans the full right edge
          */
         gridTemplateRows: "1fr 1fr 1fr 1fr 1fr",
-        gridTemplateColumns: "1fr 2fr 2fr 1fr",
+        gridTemplateColumns: "1fr 2fr 2fr 1fr 1fr",
         gap: 2,
       }}
     >

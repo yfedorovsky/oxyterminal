@@ -42,6 +42,7 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { pattern: /^WL$/, type: "watchlist", description: "Open watchlist manager" },
   { pattern: /^SET$/, type: "layout", description: "Open terminal settings" },
   { pattern: /^CLEAR$/, type: "clear", description: "Clear the command history" },
+  { pattern: /^(?:PORT|PORTFOLIO)$/, type: "portfolio", description: "Show portfolio & E*TRADE positions" },
 
   // Ticker + sub-command patterns
   { pattern: /^([A-Z]{1,5}(?:\.[A-Z]{1,2})?)\s+(?:G|CHART)$/, type: "chart", description: "Open price chart for ticker" },
@@ -78,6 +79,7 @@ export const HELP_COMMANDS: Array<{ command: string; description: string }> = [
   { command: "WL", description: "Watchlist manager" },
   { command: "SET", description: "Terminal settings" },
   { command: "CLEAR", description: "Clear command history" },
+  { command: "PORT / PORTFOLIO", description: "Portfolio & E*TRADE positions" },
   { command: "? / HELP", description: "Show this help overlay" },
 ];
 

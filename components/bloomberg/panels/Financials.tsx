@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useAtomValue } from "jotai";
-import { useFinancials } from "@/lib/hooks";
+import { useFinancials, useBalanceSheet, useCashFlow } from "@/lib/hooks";
 import { financialsAAPL as mockFinancials } from "@/lib/mock-data";
 import { activeTickerAtom } from "../atoms";
 import type { FinancialsData } from "../types";
@@ -18,14 +18,20 @@ function formatPct(val: number): string {
   return prefix + val.toFixed(1) + "%";
 }
 
-interface RowDef {
-  label: string;
-  key: "revenue" | "grossProfit" | "operatingIncome" | "netIncome" | "eps" | "revenueGrowth";
-  format: (val: number) => string;
-  colorize?: boolean;
+function formatRatio(val: number): string {
+  return val.toFixed(2) + "x";
 }
 
-const ROWS: RowDef[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface GenericRowDef<T = any> {
+  label: string;
+  key: string;
+  format: (val: number) => string;
+  colorize?: boolean;
+  getValue?: (item: T) => number;
+}
+
+const INCOME_ROWS: GenericRowDef[] = [
   { label: "Revenue", key: "revenue", format: formatBillions },
   { label: "Gross Profit", key: "grossProfit", format: formatBillions },
   { label: "Operating Income", key: "operatingIncome", format: formatBillions },
@@ -34,18 +40,149 @@ const ROWS: RowDef[] = [
   { label: "Revenue Growth", key: "revenueGrowth", format: formatPct, colorize: true },
 ];
 
+const BALANCE_SHEET_ROWS: GenericRowDef[] = [
+  { label: "Total Assets", key: "totalAssets", format: formatBillions },
+  { label: "Total Liabilities", key: "totalLiabilities", format: formatBillions },
+  { label: "Total Equity", key: "totalEquity", format: formatBillions },
+  { label: "Cash & Equivalents", key: "cash", format: formatBillions },
+  { label: "Total Debt", key: "totalDebt", format: formatBillions },
+  { label: "Net Debt", key: "netDebt", format: formatBillions },
+  { label: "Current Ratio", key: "currentRatio", format: formatRatio },
+];
+
+const CASH_FLOW_ROWS: GenericRowDef[] = [
+  { label: "Operating Cash Flow", key: "operatingCashFlow", format: formatBillions },
+  { label: "Capital Expenditure", key: "capitalExpenditure", format: formatBillions },
+  { label: "Free Cash Flow", key: "freeCashFlow", format: formatBillions, colorize: true },
+  { label: "Net Income", key: "netIncome", format: formatBillions },
+  { label: "Stock-Based Comp", key: "stockBasedCompensation", format: formatBillions },
+  { label: "Dividends Paid", key: "dividendsPaid", format: formatBillions },
+  { label: "Buybacks", key: "commonStockRepurchased", format: formatBillions },
+];
+
 const TABS: FinancialTab[] = ["Income", "Balance Sheet", "Cash Flow"];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function FinancialTable({ rows, quarters, isError }: { rows: GenericRowDef[]; quarters: Record<string, any>[]; isError?: boolean }) {
+  if (!quarters || quarters.length === 0) {
+    return (
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ color: "#7a8a9e", fontSize: "11px" }}
+      >
+        No data available
+      </div>
+    );
+  }
+
+  return (
+    <table
+      className="w-full border-collapse text-xs"
+      style={{ fontVariantNumeric: "tabular-nums" }}
+    >
+      <thead>
+        <tr>
+          <th
+            className="sticky top-0 left-0 z-20 px-2 py-1 font-normal uppercase tracking-wide"
+            style={{
+              fontSize: "10px",
+              color: "#7a8a9e",
+              background: "#111820",
+              textAlign: "left",
+              borderBottom: "1px solid #2a3545",
+              minWidth: "120px",
+            }}
+          >
+            Metric
+          </th>
+          {quarters.map((q) => (
+            <th
+              key={q.quarter}
+              className="sticky top-0 z-10 px-2 py-1 font-normal uppercase tracking-wide"
+              style={{
+                fontSize: "10px",
+                color: "#7a8a9e",
+                background: "#111820",
+                textAlign: "right",
+                borderBottom: "1px solid #2a3545",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {q.quarter}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, rowIdx) => {
+          const isEven = rowIdx % 2 === 0;
+          const rowBg = isEven ? "#111820" : "#151d2a";
+
+          return (
+            <tr key={row.key} style={{ height: "24px", background: rowBg }}>
+              <td
+                className="sticky left-0 z-10 px-2 py-0.5 font-normal uppercase tracking-wide"
+                style={{
+                  fontSize: "10px",
+                  color: "#7a8a9e",
+                  background: rowBg,
+                  textAlign: "left",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {row.label}
+              </td>
+              {quarters.map((q) => {
+                const val = row.getValue ? row.getValue(q) : q[row.key];
+                const color = row.colorize
+                  ? val >= 0
+                    ? "#00d4aa"
+                    : "#ff4757"
+                  : "#e8edf3";
+
+                return (
+                  <td
+                    key={q.quarter}
+                    className="px-2 py-0.5"
+                    style={{
+                      color,
+                      textAlign: "right",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {row.format(val)}
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
+        {isError && (
+          <tr>
+            <td
+              colSpan={quarters.length + 1}
+              className="px-2 py-1 text-center"
+              style={{ color: "#ff4757", fontSize: "10px" }}
+            >
+              API error - showing cached data
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
 
 export default function Financials() {
   const [activeTab, setActiveTab] = useState<FinancialTab>("Income");
   const activeTicker = useAtomValue(activeTickerAtom);
 
-  const { data: apiFinancials, isLoading, isError } = useFinancials(activeTicker);
+  const { data: apiFinancials, isLoading: incomeLoading, isError: incomeError } = useFinancials(activeTicker);
+  const { data: balanceSheetData, isLoading: bsLoading, isError: bsError } = useBalanceSheet(activeTicker);
+  const { data: cashFlowData, isLoading: cfLoading, isError: cfError } = useCashFlow(activeTicker);
 
-  // Map API data to our FinancialsData shape
-  // API returns array of { quarter, revenue, grossProfit, operatingIncome, netIncome, eps, revenueGrowth }
-  // where revenueGrowth is a percentage (e.g. 4.2 meaning 4.2%), but our mock uses decimal (0.042)
-  const data: FinancialsData = useMemo(() => {
+  // Map API data to our FinancialsData shape for Income Statement
+  const incomeData: FinancialsData = useMemo(() => {
     if (apiFinancials && Array.isArray(apiFinancials) && apiFinancials.length > 0) {
       return {
         ticker: activeTicker,
@@ -64,7 +201,17 @@ export default function Financials() {
     return { ...mockFinancials, ticker: activeTicker };
   }, [apiFinancials, activeTicker]);
 
-  if (isLoading && !apiFinancials) {
+  const isLoading =
+    activeTab === "Income" ? incomeLoading :
+    activeTab === "Balance Sheet" ? bsLoading :
+    cfLoading;
+
+  const hasNoData =
+    activeTab === "Income" ? !apiFinancials :
+    activeTab === "Balance Sheet" ? !balanceSheetData :
+    !cashFlowData;
+
+  if (isLoading && hasNoData) {
     return (
       <div className="flex h-full flex-col" style={{ background: "#0a0e14" }}>
         <div
@@ -99,7 +246,7 @@ export default function Financials() {
           className="mr-3"
           style={{ color: "#ff8c00", fontWeight: 600, fontSize: "12px" }}
         >
-          {data.ticker}
+          {activeTicker}
         </span>
         {TABS.map((tab) => (
           <button
@@ -133,108 +280,26 @@ export default function Financials() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        {activeTab === "Income" ? (
-          <table
-            className="w-full border-collapse text-xs"
-            style={{ fontVariantNumeric: "tabular-nums" }}
-          >
-            <thead>
-              <tr>
-                <th
-                  className="sticky top-0 left-0 z-20 px-2 py-1 font-normal uppercase tracking-wide"
-                  style={{
-                    fontSize: "10px",
-                    color: "#7a8a9e",
-                    background: "#111820",
-                    textAlign: "left",
-                    borderBottom: "1px solid #2a3545",
-                    minWidth: "120px",
-                  }}
-                >
-                  Metric
-                </th>
-                {data.quarters.map((q) => (
-                  <th
-                    key={q.quarter}
-                    className="sticky top-0 z-10 px-2 py-1 font-normal uppercase tracking-wide"
-                    style={{
-                      fontSize: "10px",
-                      color: "#7a8a9e",
-                      background: "#111820",
-                      textAlign: "right",
-                      borderBottom: "1px solid #2a3545",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {q.quarter}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROWS.map((row, rowIdx) => {
-                const isEven = rowIdx % 2 === 0;
-                const rowBg = isEven ? "#111820" : "#151d2a";
-
-                return (
-                  <tr key={row.key} style={{ height: "24px", background: rowBg }}>
-                    <td
-                      className="sticky left-0 z-10 px-2 py-0.5 font-normal uppercase tracking-wide"
-                      style={{
-                        fontSize: "10px",
-                        color: "#7a8a9e",
-                        background: rowBg,
-                        textAlign: "left",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {row.label}
-                    </td>
-                    {data.quarters.map((q) => {
-                      const val = q[row.key];
-                      const color = row.colorize
-                        ? val >= 0
-                          ? "#00d4aa"
-                          : "#ff4757"
-                        : "#e8edf3";
-
-                      return (
-                        <td
-                          key={q.quarter}
-                          className="px-2 py-0.5"
-                          style={{
-                            color,
-                            textAlign: "right",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {row.format(val)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-              {isError && (
-                <tr>
-                  <td
-                    colSpan={data.quarters.length + 1}
-                    className="px-2 py-1 text-center"
-                    style={{ color: "#ff4757", fontSize: "10px" }}
-                  >
-                    API error - showing cached data
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div
-            className="flex h-full items-center justify-center"
-            style={{ color: "#7a8a9e", fontSize: "11px" }}
-          >
-            Coming in Phase 2
-          </div>
+        {activeTab === "Income" && (
+          <FinancialTable
+            rows={INCOME_ROWS}
+            quarters={incomeData.quarters}
+            isError={incomeError}
+          />
+        )}
+        {activeTab === "Balance Sheet" && (
+          <FinancialTable
+            rows={BALANCE_SHEET_ROWS}
+            quarters={Array.isArray(balanceSheetData) ? balanceSheetData : []}
+            isError={bsError}
+          />
+        )}
+        {activeTab === "Cash Flow" && (
+          <FinancialTable
+            rows={CASH_FLOW_ROWS}
+            quarters={Array.isArray(cashFlowData) ? cashFlowData : []}
+            isError={cfError}
+          />
         )}
       </div>
     </div>
