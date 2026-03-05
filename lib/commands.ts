@@ -63,17 +63,17 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
 // ---------------------------------------------------------------------------
 export const HELP_COMMANDS: Array<{ command: string; description: string }> = [
   { command: "<TICKER>", description: "Load quote for a ticker (e.g. AAPL)" },
-  { command: "<TICKER> G / CHART", description: "Open price chart" },
+  { command: "<TICKER> G", description: "Open price chart (also: CHART)" },
   { command: "<TICKER> DES", description: "Company description & profile" },
   { command: "<TICKER> FA", description: "Financials & fundamentals" },
   { command: "<TICKER> OPT", description: "Options chain" },
-  { command: "<TICKER> N / NEWS", description: "News feed for ticker" },
+  { command: "<TICKER> N", description: "News feed for ticker (also: NEWS)" },
   { command: "<TICKER> HDS", description: "Major holders & ownership" },
   { command: "<TICKER> AI", description: "AI research analysis" },
   { command: "MOST", description: "Most active / biggest movers" },
   { command: "EARN", description: "Upcoming earnings calendar" },
   { command: "BUZZ", description: "Social buzz / trending tickers" },
-  { command: "FEAR / SENTIMENT", description: "Market sentiment & fear/greed" },
+  { command: "FEAR", description: "Market sentiment & fear/greed (also: SENTIMENT)" },
   { command: "SECTOR <NAME>", description: "Sector performance (e.g. SECTOR TECH)" },
   { command: "STATS", description: "Quick market statistics" },
   { command: "BRIEF", description: "AI research brief for active ticker" },
@@ -81,8 +81,8 @@ export const HELP_COMMANDS: Array<{ command: string; description: string }> = [
   { command: "WL", description: "Watchlist manager" },
   { command: "SET", description: "Terminal settings" },
   { command: "CLEAR", description: "Clear command history" },
-  { command: "PORT / PORTFOLIO", description: "Portfolio & E*TRADE positions" },
-  { command: "? / HELP", description: "Show this help overlay" },
+  { command: "PORT", description: "Portfolio & E*TRADE positions (also: PORTFOLIO)" },
+  { command: "HELP", description: "Show this help overlay (also: ?)" },
 ];
 
 // ---------------------------------------------------------------------------

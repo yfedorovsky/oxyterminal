@@ -35,4 +35,4 @@ export const showHelpAtom = atom<boolean>(false);
 
 // Tracks which panel to show in the "flexible" bottom-left slot (grid area "oc").
 // Default is "options-chain", but commands like DES, FA, MOST swap it.
-export const flexPanelAtom = atom<PanelType>("options-chain");
+export const flexPanelAtom = atomWithStorage<PanelType>("oxy-flex-panel", "options-chain");
