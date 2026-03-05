@@ -4,22 +4,11 @@ import { useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { activeTickerAtom } from "../atoms";
 
-// NYSE-listed tickers from the watchlist. TradingView needs the correct
-// exchange prefix — everything else defaults to NASDAQ.
-const NYSE_TICKERS = new Set([
-  "BAC", "BRK.B", "IBM", "JNJ", "JPM", "MA", "PFE",
-  "GS", "UNH", "JNJ", "XOM", "CVX", "MCD", "KO", "PG",
-  "WMT", "DIS", "V", "HD", "CAT", "HON", "GE", "MMM",
-  "CRM", // NYSE since Dec 2020
-]);
-
-// ETFs use AMEX
-const AMEX_TICKERS = new Set(["SPY", "QQQ", "DIA", "IWM", "TLT", "XLE", "KRE", "GLD", "SLV"]);
-
+// Let TradingView auto-resolve the exchange for US tickers.
+// Hardcoded exchange sets go stale (e.g. WMT moved NYSE→NASDAQ Aug 2024).
+// TradingView handles plain symbols correctly for all major US equities/ETFs.
 function getTradingViewSymbol(ticker: string): string {
-  if (AMEX_TICKERS.has(ticker)) return `AMEX:${ticker}`;
-  if (NYSE_TICKERS.has(ticker)) return `NYSE:${ticker}`;
-  return `NASDAQ:${ticker}`;
+  return ticker;
 }
 
 export default function MainChart() {
