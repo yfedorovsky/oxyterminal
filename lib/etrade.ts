@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import OAuth from "oauth-1.0a";
 
 // E*TRADE OAuth 1.0a Service
 // Production base: https://api.etrade.com
@@ -43,6 +44,7 @@ export class ETradeService {
   private consumerKey: string;
   private consumerSecret: string;
   private baseUrl: string;
+  private oauth: OAuth;
 
   constructor(consumerKey: string, consumerSecret: string, sandbox = false) {
     this.consumerKey = consumerKey;
@@ -50,79 +52,39 @@ export class ETradeService {
     this.baseUrl = sandbox
       ? "https://apisb.etrade.com"
       : "https://api.etrade.com";
-  }
 
-  // Generate OAuth 1.0a HMAC-SHA1 signature
-  private generateOAuthSignature(
-    method: string,
-    url: string,
-    params: Record<string, string>,
-    tokenSecret: string = ""
-  ): string {
-    // Sort params alphabetically and percent-encode
-    const sortedParams = Object.keys(params)
-      .sort()
-      .map(
-        (key) =>
-          `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`
-      )
-      .join("&");
-
-    const baseString = [
-      method.toUpperCase(),
-      encodeURIComponent(url),
-      encodeURIComponent(sortedParams),
-    ].join("&");
-
-    const signingKey = `${encodeURIComponent(this.consumerSecret)}&${encodeURIComponent(tokenSecret)}`;
-
-    return crypto
-      .createHmac("sha1", signingKey)
-      .update(baseString)
-      .digest("base64");
-  }
-
-  // Build base OAuth parameters for a request
-  private getOAuthParams(token?: string): Record<string, string> {
-    const params: Record<string, string> = {
-      oauth_consumer_key: this.consumerKey,
-      oauth_nonce: crypto.randomBytes(16).toString("hex"),
-      oauth_signature_method: "HMAC-SHA1",
-      oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-      oauth_version: "1.0",
-    };
-    if (token) {
-      params.oauth_token = token;
-    }
-    return params;
-  }
-
-  // Build Authorization header value from OAuth params
-  private buildAuthHeader(params: Record<string, string>): string {
-    return (
-      "OAuth " +
-      Object.keys(params)
-        .filter((k) => k.startsWith("oauth_"))
-        .sort()
-        .map(
-          (k) => `${encodeURIComponent(k)}="${encodeURIComponent(params[k])}"`
-        )
-        .join(", ")
-    );
+    this.oauth = new OAuth({
+      consumer: { key: consumerKey, secret: consumerSecret },
+      signature_method: "HMAC-SHA1",
+      hash_function(baseString, key) {
+        return crypto
+          .createHmac("sha1", key)
+          .update(baseString)
+          .digest("base64");
+      },
+    });
   }
 
   // Step 1: Get request token
   async getRequestToken(callbackUrl: string): Promise<OAuthTokens> {
     const url = `${this.baseUrl}/oauth/request_token`;
-    const oauthParams = this.getOAuthParams();
-    oauthParams.oauth_callback = callbackUrl;
 
-    const signature = this.generateOAuthSignature("GET", url, oauthParams);
-    oauthParams.oauth_signature = signature;
+    const requestData = {
+      url,
+      method: "POST",
+      data: { oauth_callback: callbackUrl },
+    };
 
-    const res = await fetch(
-      `${url}?${new URLSearchParams(oauthParams).toString()}`
+    const authHeader = this.oauth.toHeader(
+      this.oauth.authorize(requestData)
     );
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...authHeader,
+      },
+    });
 
     if (!res.ok) {
       const body = await res.text();
@@ -149,20 +111,24 @@ export class ETradeService {
     verifier: string
   ): Promise<OAuthTokens> {
     const url = `${this.baseUrl}/oauth/access_token`;
-    const oauthParams = this.getOAuthParams(requestToken);
-    oauthParams.oauth_verifier = verifier;
 
-    const signature = this.generateOAuthSignature(
-      "GET",
+    const requestData = {
       url,
-      oauthParams,
-      requestTokenSecret
-    );
-    oauthParams.oauth_signature = signature;
+      method: "POST",
+      data: { oauth_verifier: verifier },
+    };
 
-    const res = await fetch(
-      `${url}?${new URLSearchParams(oauthParams).toString()}`
+    const token = { key: requestToken, secret: requestTokenSecret };
+    const authHeader = this.oauth.toHeader(
+      this.oauth.authorize(requestData, token)
     );
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...authHeader,
+      },
+    });
 
     if (!res.ok) {
       const body = await res.text();
@@ -183,19 +149,19 @@ export class ETradeService {
     accessTokenSecret: string
   ): Promise<void> {
     const url = `${this.baseUrl}/oauth/renew_access_token`;
-    const oauthParams = this.getOAuthParams(accessToken);
 
-    const signature = this.generateOAuthSignature(
-      "GET",
-      url,
-      oauthParams,
-      accessTokenSecret
+    const requestData = { url, method: "GET" };
+    const token = { key: accessToken, secret: accessTokenSecret };
+    const authHeader = this.oauth.toHeader(
+      this.oauth.authorize(requestData, token)
     );
-    oauthParams.oauth_signature = signature;
 
-    const res = await fetch(
-      `${url}?${new URLSearchParams(oauthParams).toString()}`
-    );
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        ...authHeader,
+      },
+    });
 
     if (!res.ok) {
       const body = await res.text();
@@ -216,22 +182,20 @@ export class ETradeService {
       ? `${url}?${new URLSearchParams(queryParams).toString()}`
       : url;
 
-    const oauthParams = this.getOAuthParams(accessToken);
-
-    // Include query params in signature base string
-    const allParams = { ...oauthParams, ...(queryParams || {}) };
-    const signature = this.generateOAuthSignature(
+    const requestData = {
+      url: fullUrl,
       method,
-      url,
-      allParams,
-      accessTokenSecret
+    };
+
+    const token = { key: accessToken, secret: accessTokenSecret };
+    const authHeader = this.oauth.toHeader(
+      this.oauth.authorize(requestData, token)
     );
-    oauthParams.oauth_signature = signature;
 
     const res = await fetch(fullUrl, {
       method,
       headers: {
-        Authorization: this.buildAuthHeader(oauthParams),
+        ...authHeader,
         Accept: "application/json",
       },
     });
