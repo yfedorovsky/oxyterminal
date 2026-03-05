@@ -115,7 +115,17 @@ export default function PanelWorkspace() {
 
   // If a panel is maximized, render only that panel
   if (maximizedPanel) {
-    const panel = panels.find((p) => p.id === maximizedPanel);
+    // Look in the panels atom first, then try synthesized flex panels
+    let panel = panels.find((p) => p.id === maximizedPanel);
+    if (!panel && maximizedPanel === `panel-${flexPanel}`) {
+      panel = {
+        id: `panel-${flexPanel}`,
+        type: flexPanel,
+        title: FLEX_PANEL_TITLES[flexPanel] ?? flexPanel.toUpperCase().replace(/-/g, " "),
+        linkColor: null,
+        isMaximized: true,
+      };
+    }
     if (panel) {
       return (
         <div
