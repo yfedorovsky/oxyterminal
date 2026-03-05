@@ -15,8 +15,8 @@ export function useQuotes(symbols: string[]) {
       if (!res.ok) throw new Error("Failed to fetch quotes");
       return res.json();
     },
-    refetchInterval: 15_000, // 15s polling
-    staleTime: 10_000,
+    refetchInterval: 30_000, // 30s polling — paced for Finnhub free tier (60 calls/min)
+    staleTime: 25_000,
     gcTime: 120_000, // keep cached data for 2 min so tab-switching is instant
     placeholderData: (prev) => prev, // show old data while fetching new watchlist
     enabled: symbols.length > 0,

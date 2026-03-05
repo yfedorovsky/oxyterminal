@@ -140,7 +140,10 @@ export class FinnhubService {
   // In-memory quote cache: symbol → { data, timestamp }
   // Prevents duplicate API calls when QuoteMonitor + Heatmap request overlapping tickers
   private quoteCache = new Map<string, { data: FinnhubQuote; ts: number }>();
-  private readonly CACHE_TTL = 12_000; // 12 seconds (just under the 15s refetch)
+  private readonly CACHE_TTL = 25_000; // 25 seconds — aggressive caching to stay under 60/min
+
+  // In-flight deduplication: if a symbol is already being fetched, reuse the promise
+  private inFlight = new Map<string, Promise<FinnhubQuote>>();
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -181,44 +184,62 @@ export class FinnhubService {
     return this.fetch<FinnhubQuote>("/quote", { symbol });
   }
 
+  /**
+   * Deduplicated single-quote fetch. If a request for the same symbol is
+   * already in-flight, reuse it instead of starting a duplicate.
+   */
+  private async getQuoteDeduped(symbol: string): Promise<FinnhubQuote> {
+    const existing = this.inFlight.get(symbol);
+    if (existing) return existing;
+
+    const promise = this.getQuote(symbol).finally(() => {
+      this.inFlight.delete(symbol);
+    });
+    this.inFlight.set(symbol, promise);
+    return promise;
+  }
+
   async getQuotes(symbols: string[]): Promise<(FinnhubQuote & { symbol: string })[]> {
     const now = Date.now();
-    const cached: (FinnhubQuote & { symbol: string })[] = [];
+    const results: (FinnhubQuote & { symbol: string })[] = [];
     const toFetch: string[] = [];
 
     // Split into cached vs. needs-fetch
     for (const symbol of symbols) {
       const entry = this.quoteCache.get(symbol);
       if (entry && now - entry.ts < this.CACHE_TTL) {
-        cached.push({ ...entry.data, symbol });
+        results.push({ ...entry.data, symbol });
       } else {
         toFetch.push(symbol);
       }
     }
 
-    // Fetch uncached symbols in parallel batches
+    // Fetch uncached symbols in small parallel batches with delay between
     if (toFetch.length > 0) {
-      const BATCH_SIZE = 10;
+      const BATCH_SIZE = 6; // small batches to stay under 60/min
       for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
+        if (i > 0) {
+          // Small delay between batches to pace requests
+          await new Promise((r) => setTimeout(r, 200));
+        }
         const batch = toFetch.slice(i, i + BATCH_SIZE);
-        const results = await Promise.allSettled(
+        const settled = await Promise.allSettled(
           batch.map(async (symbol) => {
-            const quote = await this.getQuote(symbol);
-            // Cache the result
+            const quote = await this.getQuoteDeduped(symbol);
             this.quoteCache.set(symbol, { data: quote, ts: Date.now() });
             return { ...quote, symbol };
           }),
         );
 
-        for (const r of results) {
+        for (const r of settled) {
           if (r.status === "fulfilled") {
-            cached.push(r.value);
+            results.push(r.value);
           }
         }
       }
     }
 
-    return cached;
+    return results;
   }
 
   // ── Company ────────────────────────────────────────────────────────────
