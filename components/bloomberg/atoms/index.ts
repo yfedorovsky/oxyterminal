@@ -1,4 +1,5 @@
 import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import type { LinkColor, PanelConfig, PanelType } from "../types";
 
 const DEFAULT_PANELS: PanelConfig[] = [
@@ -21,8 +22,8 @@ export const activeCommandAtom = atom<string>("");
 export const panelsAtom = atom<PanelConfig[]>(DEFAULT_PANELS);
 export const maximizedPanelAtom = atom<string | null>(null);
 export const activeLinkColorAtom = atom<LinkColor>(null);
-export const activeWatchlistAtom = atom<string>("Main");
-export const watchlistsAtom = atom<Record<string, string[]>>({
+export const activeWatchlistAtom = atomWithStorage<string>("oxy-active-watchlist", "Main");
+export const watchlistsAtom = atomWithStorage<Record<string, string[]>>("oxy-watchlists", {
   Main: [
     "AAPL", "AMZN", "AMGN", "BAC", "BRK.B",
     "GOOG", "IBM", "JNJ", "JPM", "MA",

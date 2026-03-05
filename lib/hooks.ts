@@ -1,6 +1,9 @@
 "use client";
 
+import { useCallback, useState } from "react";
+import { useSetAtom } from "jotai";
 import { useQuery } from "@tanstack/react-query";
+import { watchlistsAtom, activeWatchlistAtom } from "@/components/bloomberg/atoms";
 
 // ─── Finnhub Hooks ──────────────────────────────────────────────────────
 
@@ -131,6 +134,58 @@ export function useAIResearch(symbol: string) {
     retry: 1,
     refetchOnWindowFocus: false, // Don't auto-refetch, user triggers via Regenerate
   });
+}
+
+// ─── Watchlist Hooks ────────────────────────────────────────────────────
+
+export function useImportWatchlists() {
+  const setWatchlists = useSetAtom(watchlistsAtom);
+  const setActiveWatchlist = useSetAtom(activeWatchlistAtom);
+  const [isImporting, setIsImporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const importWatchlists = useCallback(async () => {
+    setIsImporting(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/watchlists/import");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Import failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      const wl = data.watchlists as Record<string, string[]>;
+
+      if (!wl || Object.keys(wl).length === 0) {
+        throw new Error("No watchlists found in mirbot");
+      }
+
+      setWatchlists(wl);
+
+      // If current active watchlist doesn't exist in new data, switch to first
+      const names = Object.keys(wl);
+      if (names.length > 0) {
+        // Keep "Main" or "Swing" as default if it exists
+        if (wl["Main"]) {
+          setActiveWatchlist("Main");
+        } else {
+          setActiveWatchlist(names[0]);
+        }
+      }
+
+      return { count: Object.keys(wl).length, names: Object.keys(wl) };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(msg);
+      throw err;
+    } finally {
+      setIsImporting(false);
+    }
+  }, [setWatchlists, setActiveWatchlist]);
+
+  return { importWatchlists, isImporting, error };
 }
 
 // ─── FMP Hooks ──────────────────────────────────────────────────────────

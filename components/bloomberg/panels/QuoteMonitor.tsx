@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useQuotes } from "@/lib/hooks";
 import { useFinnhubWebSocket } from "@/lib/use-websocket-quotes";
 import { watchlistQuotes as mockQuotes } from "@/lib/mock-data";
@@ -95,7 +95,7 @@ function usePriceFlash(
 export default function QuoteMonitor() {
   const [activeTicker, setActiveTicker] = useAtom(activeTickerAtom);
   const watchlists = useAtomValue(watchlistsAtom);
-  const activeWatchlist = useAtomValue(activeWatchlistAtom);
+  const [activeWatchlist, setActiveWatchlist] = useAtom(activeWatchlistAtom);
 
   const [sortKey, setSortKey] = useState<SortKey>("ticker");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -218,6 +218,9 @@ export default function QuoteMonitor() {
     });
   }, [quotes, sortKey, sortDir]);
 
+  const watchlistNames = useMemo(() => Object.keys(watchlists), [watchlists]);
+  const hasMultipleWatchlists = watchlistNames.length > 1;
+
   if (isLoading && quotes.length === 0) {
     return (
       <div
@@ -230,7 +233,7 @@ export default function QuoteMonitor() {
   }
 
   return (
-    <div className="h-full overflow-auto" style={{ background: "#0a0e14" }}>
+    <div className="h-full flex flex-col" style={{ background: "#0a0e14" }}>
       {/* Price flash animation styles */}
       <style>{`
         @keyframes price-flash-up {
@@ -249,6 +252,52 @@ export default function QuoteMonitor() {
         }
       `}</style>
 
+      {/* Watchlist tab bar */}
+      {hasMultipleWatchlists && (
+        <div
+          className="flex items-center gap-0 shrink-0 overflow-x-auto terminal-scrollbar"
+          style={{
+            background: "#111820",
+            borderBottom: "1px solid #2a3545",
+            minHeight: "26px",
+          }}
+        >
+          {watchlistNames.map((name) => {
+            const isActive = name === activeWatchlist;
+            const count = watchlists[name]?.length ?? 0;
+            return (
+              <button
+                key={name}
+                onClick={() => setActiveWatchlist(name)}
+                className="px-3 py-1 shrink-0 cursor-pointer select-none transition-colors"
+                style={{
+                  fontSize: "10px",
+                  fontWeight: isActive ? 700 : 400,
+                  color: isActive ? "#ff8c00" : "#7a8a9e",
+                  background: isActive ? "#1a2130" : "transparent",
+                  borderBottom: isActive
+                    ? "2px solid #ff8c00"
+                    : "2px solid transparent",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {name}
+                <span
+                  style={{
+                    marginLeft: "4px",
+                    fontSize: "9px",
+                    color: isActive ? "#ff8c00" : "#3a4553",
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-auto">
       <table
         className="w-full border-collapse text-xs"
         style={{ fontVariantNumeric: "tabular-nums" }}
@@ -426,6 +475,7 @@ export default function QuoteMonitor() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

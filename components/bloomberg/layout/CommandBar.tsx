@@ -11,6 +11,7 @@ import {
   flexPanelAtom,
 } from "../atoms";
 import { parseCommand, getCommandSuggestions } from "@/lib/commands";
+import { useImportWatchlists } from "@/lib/hooks";
 
 // Known standalone command keywords — skip FMP search when input matches exactly
 const KNOWN_COMMANDS = new Set([
@@ -33,6 +34,9 @@ export default function CommandBar() {
   const setActiveTicker = useSetAtom(activeTickerAtom);
   const setShowHelp = useSetAtom(showHelpAtom);
   const setFlexPanel = useSetAtom(flexPanelAtom);
+
+  const { importWatchlists } = useImportWatchlists();
+  const [wlToast, setWlToast] = useState<string | null>(null);
 
   const [inputValue, setInputValue] = useState("");
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -188,6 +192,17 @@ export default function CommandBar() {
           break;
         case "options":
           setFlexPanel("options-chain");
+          break;
+        case "watchlist":
+          importWatchlists()
+            .then((result) => {
+              setWlToast(`Loaded ${result.count} watchlists: ${result.names.join(", ")}`);
+              setTimeout(() => setWlToast(null), 4000);
+            })
+            .catch((err) => {
+              setWlToast(`WL import failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+              setTimeout(() => setWlToast(null), 4000);
+            });
           break;
       }
 
@@ -358,6 +373,22 @@ export default function CommandBar() {
         {/* Active ticker badge */}
         <ActiveTickerBadge />
       </div>
+
+      {/* WL import toast */}
+      {wlToast && (
+        <div
+          className="absolute left-0 right-0 px-3 py-1.5 font-mono text-xs"
+          style={{
+            top: 36,
+            zIndex: 102,
+            background: wlToast.includes("failed") ? "#ff4757" : "#00d4aa",
+            color: "#0a0e14",
+            fontWeight: 600,
+          }}
+        >
+          {wlToast}
+        </div>
+      )}
 
       {/* Autocomplete dropdown */}
       {showDropdown && hasAnySuggestions && (
