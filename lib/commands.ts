@@ -43,6 +43,7 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { pattern: /^SET$/, type: "layout", description: "Open terminal settings" },
   { pattern: /^CLEAR$/, type: "clear", description: "Clear the command history" },
   { pattern: /^(?:PORT|PORTFOLIO)$/, type: "portfolio", description: "Show portfolio & E*TRADE positions" },
+  { pattern: /^(?:HEAT|HM|HEATMAP)$/, type: "heatmap", description: "Show watchlist heatmap" },
 
   // Ticker + sub-command patterns
   { pattern: /^([A-Z]{1,5}(?:\.[A-Z]{1,2})?)\s+(?:G|CHART)$/, type: "chart", description: "Open price chart for ticker" },
@@ -76,6 +77,7 @@ export const HELP_COMMANDS: Array<{ command: string; description: string }> = [
   { command: "SECTOR <NAME>", description: "Sector performance (e.g. SECTOR TECH)" },
   { command: "STATS", description: "Quick market statistics" },
   { command: "BRIEF", description: "AI research brief for active ticker" },
+  { command: "HEAT", description: "Watchlist heatmap (also: HM)" },
   { command: "WL", description: "Watchlist manager" },
   { command: "SET", description: "Terminal settings" },
   { command: "CLEAR", description: "Clear command history" },

@@ -11,6 +11,7 @@ export type PanelType =
   | "quick-stats"
   | "most-active"
   | "description"
+  | "heatmap"
   | "portfolio";
 
 export type LinkColor = "green" | "blue" | "yellow" | "red" | null;
@@ -44,6 +45,7 @@ export type CommandType =
   | "restore"
   | "description"
   | "watchlist"
+  | "heatmap"
   | "alert"
   | "portfolio"
   | "unknown";

@@ -18,6 +18,7 @@ const KNOWN_COMMANDS = new Set([
   "HELP", "?", "MOST", "EARN", "BUZZ", "FEAR", "SENTIMENT",
   "STATS", "BRIEF", "WL", "SET", "CLEAR", "SECTOR",
   "PORT", "PORTFOLIO",
+  "HEAT", "HM", "HEATMAP",
 ]);
 
 interface TickerResult {
@@ -192,6 +193,9 @@ export default function CommandBar() {
           break;
         case "options":
           setFlexPanel("options-chain");
+          break;
+        case "heatmap":
+          setFlexPanel("heatmap");
           break;
         case "watchlist":
           importWatchlists()

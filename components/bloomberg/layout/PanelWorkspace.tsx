@@ -23,6 +23,7 @@ import Portfolio from "../panels/Portfolio";
 import Description from "../panels/Description";
 import Financials from "../panels/Financials";
 import MostActive from "../panels/MostActive";
+import Heatmap from "../panels/Heatmap";
 
 const PANEL_COMPONENTS: Partial<Record<PanelType, React.ComponentType>> = {
   "quote-monitor": QuoteMonitor,
@@ -38,6 +39,7 @@ const PANEL_COMPONENTS: Partial<Record<PanelType, React.ComponentType>> = {
   "description": Description,
   "financials": Financials,
   "most-active": MostActive,
+  "heatmap": Heatmap,
 };
 
 function PanelContent({ type }: { type: PanelType }) {
@@ -84,6 +86,7 @@ const FLEX_PANEL_TITLES: Record<string, string> = {
   "description": "Description",
   "financials": "Financials",
   "most-active": "Most Active",
+  "heatmap": "Heatmap",
 };
 
 export default function PanelWorkspace() {
